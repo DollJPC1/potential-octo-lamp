@@ -1,3 +1,5 @@
+import java.util.LinkedList;
+
 import brick_strategies.CollisionStrategy;
 import danogl.GameManager;
 import danogl.GameObject;
@@ -13,20 +15,27 @@ import danogl.util.Vector2;
 import danogl.util.Counter;
 
 public class Bricker extends GameManager {
-        public static float WINDOW_HEIGHT = 800, WINDOW_WIDTH = 900;
+        public static float WINDOW_HEIGHT = 800, WINDOW_WIDTH = 900, HEARTS = 5;
         private final int THICKNESS = 25, BRICKS_COL = 3, BRICKS_ROW = 1;
-        private final String IMG_BALL = "assets/ball.png",
-                        IMG_BACKGROUND = "assets/background.png",
-                        IMG_PADDLE = "assets/paddle.png",
-                        IMG_GREEN_BORDERS = "assets/Green.png",
-                        IMG_BRICK = "assets/brick.png",
-                        SOND_BALL_BACKGROUND = "assets/Bubble5_4.wav",
-                        SOND_BALL_PADDLE = "assets/knock.wav",
-                        WINNER_TAG = "Win", lOST_TAG = "Lost";
+        private final String FOLDER_ASSETS = "assets/",
+                        FOLDER_AUDIO = "audio/",
+                        FOLDER_IMG = "img/",
+                        FOLDER_ITEMS = "items/",
+                        FOLDER_OBJECT = "object/",
+                        IMG_BALL = FOLDER_ASSETS + FOLDER_IMG + FOLDER_OBJECT + "ball.png",
+                        IMG_BACKGROUND = FOLDER_ASSETS + FOLDER_IMG + FOLDER_OBJECT + "background.jpeg",
+                        IMG_PADDLE = FOLDER_ASSETS + FOLDER_IMG + FOLDER_OBJECT + "paddle.png",
+                        IMG_BRICK = FOLDER_ASSETS + FOLDER_IMG + FOLDER_OBJECT + "brick.png",
+                        IMG_HEART = FOLDER_ASSETS + FOLDER_IMG + FOLDER_OBJECT + "heart.png",
+                        SOND_BALL_BACKGROUND = FOLDER_ASSETS + FOLDER_AUDIO + "Bubble5_4.wav",
+                        SOND_BALL_PADDLE = FOLDER_ASSETS + FOLDER_AUDIO + "knock.wav",
+                        WINNER_TAG = "Win";
         private final float DISTANCE_BORDER = 80,
                         SIZE_BALL = 50,
+                        SIZE_HEART = 50,
                         PADDLE_HEIGHT = 30,
                         PADDLE_WIDTH = 250,
+                        DISTANCE_HEART = 5,
                         DISTANCE_FRAME = 5,
                         ROW_DISTANCE = 2,
                         COL_DISTANCE = 3;
@@ -35,10 +44,10 @@ public class Bricker extends GameManager {
         private WindowController windowController;
         private Counter numberBrick;
         private Paddle usePaddle;
+        private LinkedList<GameObject> hearts;
 
         public Bricker(String windowTitle, Vector2 windowDimensions) {
                 super(windowTitle, windowDimensions);
-                this.numberBrick = new Counter(BRICKS_COL * BRICKS_ROW);
         }
 
         @Override
@@ -49,14 +58,17 @@ public class Bricker extends GameManager {
                                 windowController.resetGame();
                         else
                                 windowController.closeWindow();
-                else if (!this.ball.getPrompt().isEmpty()) {
-                        if (this.windowController.openYesNoDialog("lost...\n play agen?"))
-                                windowController.resetGame();
+                else if (this.ball.getCenter().y() >= WINDOW_HEIGHT)
+                        if (takesHeart())
+                                if (this.windowController.openYesNoDialog("lost...\n play agen?"))
+                                        windowController.resetGame();
+                                else
+                                        windowController.closeWindow();
                         else
-                                windowController.closeWindow();
-
-                }
-
+                                this.ball.catchBall();
+                else if (this.ball.getCenter().y() <= 0 || this.ball.getCenter().x() <= 0 || this.ball.getCenter()
+                                .x() >= WINDOW_WIDTH)
+                        this.ball.catchBall();
         }
 
         @Override
@@ -72,9 +84,11 @@ public class Bricker extends GameManager {
                 Renderable imgBackground = img.readImage(IMG_BACKGROUND, false);
                 createBackground(imgBackground);
                 // create border
-                Renderable bordersImg = img.readImage(IMG_GREEN_BORDERS, false);
-                createBorders(bordersImg);
+                createBorders();
 
+                // create heart
+                Renderable heartImg = img.readImage(IMG_HEART, true);
+                createHeart(heartImg);
                 // creat paddle
                 Renderable paddleImg = img.readImage(IMG_PADDLE, false);
                 createPaddle(paddleImg, inputListener);
@@ -84,6 +98,8 @@ public class Bricker extends GameManager {
                 Sound collisionSoundBackground = soundReader.readSound(SOND_BALL_BACKGROUND);
                 Sound collisionSoundPaddle = soundReader.readSound(SOND_BALL_PADDLE);
                 createBall(ballIng, collisionSoundBackground, collisionSoundPaddle, inputListener);
+                this.numberBrick = new Counter(BRICKS_COL * BRICKS_ROW);
+
                 // create Brick
                 Renderable brick = img.readImage(IMG_BRICK, false);
 
@@ -98,7 +114,7 @@ public class Bricker extends GameManager {
 
         }
 
-        private void createBorders(Renderable img) {
+        private void createBorders() {
 
                 GameObject[] borders = {
                                 // UP
@@ -117,17 +133,18 @@ public class Bricker extends GameManager {
                                                                 THICKNESS, windoeDimensions.y()),
                                                 null),
                                 // Done
-                                new GameObject(
-                                                Vector2.ZERO, new Vector2(
-                                                                windoeDimensions.x(), THICKNESS),
-                                                img)
+                                // new GameObject(
+                                // Vector2.ZERO, new Vector2(
+                                // windoeDimensions.x(), THICKNESS),
+                                // img)
                 };
 
                 borders[2].setCenter(new Vector2(windoeDimensions.x(), windoeDimensions.y() / 2));
-                borders[3].setCenter(new Vector2(windoeDimensions.x() / 2, windoeDimensions.y()));
+                // borders[3].setCenter(new Vector2(windoeDimensions.x() / 2,
+                // windoeDimensions.y()));
 
                 borders[0].setTag(WINNER_TAG);
-                borders[3].setTag(lOST_TAG);
+                // borders[3].setTag(lOST_TAG);
 
                 for (GameObject obj : borders)
                         gameObjects().addGameObject(obj, Layer.STATIC_OBJECTS);
@@ -138,9 +155,8 @@ public class Bricker extends GameManager {
                         Sound collisionSoundBackground, Sound collisionSoundPaddle, UserInputListener inputListener) {
 
                 this.ball = new Ball(Vector2.ZERO, new Vector2(SIZE_BALL, SIZE_BALL), imgRenderable,
-                                collisionSoundBackground, collisionSoundPaddle, windoeDimensions, this.usePaddle,
-                                inputListener,
-                                windoeDimensions.x() - PADDLE_WIDTH);
+                                collisionSoundBackground, collisionSoundPaddle, this.usePaddle,
+                                inputListener);
                 ball.catchBall();
                 gameObjects().addGameObject(this.ball);
         }
@@ -178,6 +194,23 @@ public class Bricker extends GameManager {
                                                                 + THICKNESS));
                                 gameObjects().addGameObject(allBricks[column][row], Layer.STATIC_OBJECTS);
                         }
+        }
+
+        private void createHeart(Renderable img) {
+                this.hearts = new LinkedList<GameObject>();
+                for (int i = 0; i < HEARTS; i++) {
+                        GameObject heart = new GameObject(Vector2.ZERO, Vector2.ONES.mult(SIZE_HEART), img);
+                        heart.setCenter(new Vector2(SIZE_HEART / 2 + i * (SIZE_HEART + DISTANCE_HEART),
+                                        WINDOW_HEIGHT - SIZE_HEART / 2));
+                        heart.setCoordinateSpace(CoordinateSpace.CAMERA_COORDINATES);
+                        gameObjects().addGameObject(heart);
+                        hearts.add(heart);
+                }
+        }
+
+        private boolean takesHeart() {
+                gameObjects().removeGameObject(this.hearts.removeLast());
+                return this.hearts.isEmpty();
         }
 
         public static void main(String[] args) {

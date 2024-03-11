@@ -7,7 +7,6 @@ import java.awt.event.KeyEvent;
 public class Paddle extends GameObject {
     final float PADDLE_SPPED = 700;
     final float MIN_DISTANCE_FROM_SCREEN_EDGE = 15;
-
     private UserInputListener inputListener;
     private final float maxDistanceFromScreenEdge;
 
@@ -16,7 +15,7 @@ public class Paddle extends GameObject {
         super(topLeftCorner, dimensions, renderable);
         
         this.inputListener = inputListener;
-        this.maxDistanceFromScreenEdge = maxWinsow - MIN_DISTANCE_FROM_SCREEN_EDGE;
+        this.maxDistanceFromScreenEdge = maxWinsow - MIN_DISTANCE_FROM_SCREEN_EDGE;//טיפול
     }
 
     @Override
